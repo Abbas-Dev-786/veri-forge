@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
+import { fromHex } from "@mysten/sui/utils"; // Import helper for signature
 import { ENCLAVE_OBJECT_ID, ENCLAVE_URL, PACKAGE_ID } from "../constants";
 
 export function CreateAndMint() {
@@ -24,7 +25,7 @@ export function CreateAndMint() {
       const reqBody = {
         payload: {
           prompt: prompt,
-          seed: Math.floor(Math.random() * 1000000), // Random seed for demo
+          seed: Math.floor(Math.random() * 1000000),
         },
       };
 
@@ -41,10 +42,11 @@ export function CreateAndMint() {
       const data = await response.json();
       console.log("Enclave Response:", data);
 
-      // Extract data from Enclave Response
-      // Structure matches: { response: { signature, intent_message: { payload: {...}, timestamp_ms } } }
-      const { signature, intent_message } = data.response;
-      const payload = intent_message.data; // Note: Rust 'data' field maps here
+      // --- FIX START ---
+      // Correctly extract data based on Rust structure
+      const { signature, response: intentMessage } = data;
+      const payload = intentMessage.data;
+      // --- FIX END ---
 
       // Save image URL to display
       setGeneratedImage(payload.walrus_blob_id);
@@ -54,25 +56,24 @@ export function CreateAndMint() {
       // 2. Construct Sui Transaction
       const tx = new Transaction();
 
-      // Helper: convert hex string to Uint8Array (works in browsers without Node Buffer)
-      const hexToBytes = (hex: string) =>
-        new Uint8Array(hex.match(/.{1,2}/g)?.map((b) => parseInt(b, 16)) ?? []);
+      // Convert standard arrays (from JSON) to Uint8Array
+      // The Rust server returns `Vec<u8>` as `[number, number, ...]`
+      const imageHashBytes = new Uint8Array(payload.image_hash);
+      const promptHashBytes = new Uint8Array(payload.prompt_hash);
 
-      // Convert hex strings to byte arrays
-      const imageHashBytes = hexToBytes(payload.image_hash);
-      const promptHashBytes = hexToBytes(payload.prompt_hash);
-      const signatureBytes = hexToBytes(signature);
+      // The signature is a Hex String, so we use fromHex
+      const signatureBytes = fromHex(signature);
 
       // Call the Move contract
       tx.moveCall({
         target: `${PACKAGE_ID}::certifier::mint_certificate`,
         arguments: [
-          tx.object(ENCLAVE_OBJECT_ID), // The shared config object
+          tx.object(ENCLAVE_OBJECT_ID),
           tx.pure.vector("u8", Array.from(imageHashBytes)),
           tx.pure.vector("u8", Array.from(promptHashBytes)),
           tx.pure.u64(payload.seed),
-          tx.pure.string(payload.walrus_blob_id), // URL/Blob ID
-          tx.pure.u64(intent_message.timestamp_ms),
+          tx.pure.string(payload.walrus_blob_id),
+          tx.pure.u64(intentMessage.timestamp_ms),
           tx.pure.vector("u8", Array.from(signatureBytes)),
         ],
       });

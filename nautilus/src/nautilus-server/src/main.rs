@@ -34,8 +34,11 @@ async fn main() -> Result<()> {
         nautilus_server::app::spawn_host_init_server(state.clone()).await?;
     }
 
-    // Define your own restricted CORS policy here if needed.
-    let cors = CorsLayer::new().allow_methods(Any).allow_headers(Any);
+    // FIX: Added .allow_origin(Any) to enable CORS for the frontend
+    let cors = CorsLayer::new()
+        .allow_methods(Any)
+        .allow_headers(Any)
+        .allow_origin(Any); 
 
     let app = Router::new()
         .route("/", get(ping))

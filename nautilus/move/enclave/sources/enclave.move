@@ -179,6 +179,21 @@ fun create_intent_message<P: drop>(intent: u8, timestamp_ms: u64, payload: P): I
     }
 }
 
+public fun register_debug_enclave<T>(
+        enclave_config: &EnclaveConfig<T>,
+        pk: vector<u8>,
+        ctx: &mut TxContext,
+    ) {
+        let enclave = Enclave<T> {
+            id: object::new(ctx),
+            pk, // Uses the provided PK directly
+            config_version: enclave_config.version,
+            owner: ctx.sender(),
+        };
+        transfer::share_object(enclave);
+    }
+
+
 #[test_only]
 public fun destroy<T>(enclave: Enclave<T>) {
     let Enclave { id, .. } = enclave;
