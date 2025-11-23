@@ -2,7 +2,12 @@ import { useState } from "react";
 import { useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromHex } from "@mysten/sui/utils";
-import { ENCLAVE_OBJECT_ID, ENCLAVE_URL, PACKAGE_ID } from "../constants";
+import {
+  ENCLAVE_OBJECT_ID,
+  ENCLAVE_URL,
+  PACKAGE_ID,
+  REGISTRY_ID,
+} from "../constants";
 import { getImageFromId } from "../utils/walrus";
 
 export function CreateAndMint() {
@@ -21,7 +26,7 @@ export function CreateAndMint() {
     setGeneratedImage("");
 
     try {
-      // 1. Request Generation from Nautilus Enclave
+      // 1. Request Generation
       console.log("Calling Enclave...");
       const reqBody = {
         payload: {
@@ -41,55 +46,46 @@ export function CreateAndMint() {
       }
 
       const data = await response.json();
-      console.log("Enclave Response:", data);
-
-      // Extract signature and the intent message (which contains the payload)
       const { signature, response: intentMessage } = data;
       const payload = intentMessage.data;
 
-      const img = await getImageFromId(payload.walrus_blob_id);
-
-      // Save image URL to display in the UI
-      setGeneratedImage(img);
-
+      const image = await getImageFromId(payload.walrus_blob_id);
+      setGeneratedImage(image);
       setStatus("minting");
 
-      // 2. Construct Sui Transaction
+      // 2. Construct Transaction
       const tx = new Transaction();
 
-      // Convert raw arrays/hex to formats Sui understands
       const imageHashBytes = new Uint8Array(payload.image_hash);
       const promptHashBytes = new Uint8Array(payload.prompt_hash);
       const signatureBytes = fromHex(signature);
 
-      // IMPORTANT: Convert the JS string to a Move String object
-      // We use the standard library function 'utf8' to do this conversion on-chain
-      const [walrusString] = tx.moveCall({
+      // FIX: Manually encode string to bytes to prevent signature mismatch
+      const walrusBytes = new TextEncoder().encode(payload.walrus_blob_id);
+
+      const [walrusStringObj] = tx.moveCall({
         target: "0x1::string::utf8",
-        arguments: [tx.pure.string(payload.walrus_blob_id)],
+        arguments: [tx.pure.vector("u8", walrusBytes)],
       });
 
-      // 3. Call the Mint Function
       tx.moveCall({
         target: `${PACKAGE_ID}::certifier::mint_certificate`,
-        // IMPORTANT: Pass the 'VeriforgeApp' witness type so the contract verifies the correct Enclave
         typeArguments: [`${PACKAGE_ID}::certifier::VeriforgeApp`],
         arguments: [
+          tx.object(REGISTRY_ID), // Added Registry Object
           tx.object(ENCLAVE_OBJECT_ID),
           tx.pure.vector("u8", Array.from(imageHashBytes)),
           tx.pure.vector("u8", Array.from(promptHashBytes)),
           tx.pure.u64(payload.seed),
-          walrusString, // Pass the String object we created above
+          walrusStringObj,
           tx.pure.u64(intentMessage.timestamp_ms),
           tx.pure.vector("u8", Array.from(signatureBytes)),
         ],
       });
 
-      // 4. Execute Transaction
+      // 3. Execute
       signAndExecute(
-        {
-          transaction: tx,
-        },
+        { transaction: tx },
         {
           onSuccess: (result) => {
             console.log("Minted!", result);
@@ -120,7 +116,7 @@ export function CreateAndMint() {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           className="w-full p-3 bg-gray-900 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500 outline-none"
-          placeholder="e.g., A cyberpunk city built on Sui blockchain, digital art"
+          placeholder="e.g., A cyberpunk city built on Sui blockchain"
           rows={3}
         />
       </div>
@@ -143,9 +139,9 @@ export function CreateAndMint() {
         }
         className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-bold py-3 px-4 rounded transition-colors"
       >
-        {status === "idle" && "Generate & Mint Certificate"}
-        {status === "generating" && "Generating (Calling TEE)..."}
-        {status === "minting" && "Minting NFT..."}
+        {status === "idle" && "Generate & Mint"}
+        {status === "generating" && "Generating..."}
+        {status === "minting" && "Minting..."}
         {status === "success" && "Generate Another"}
         {status === "error" && "Try Again"}
       </button>

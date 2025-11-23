@@ -4,6 +4,7 @@ import { CreateAndMint } from "./components/CreateAndMint";
 import "@mysten/dapp-kit/dist/index.css";
 import { VerifyCertificate } from "./components/VerifyCertificate";
 import { useState } from "react";
+import { VerifyByImage } from "./components/VerifyByImage";
 // import { useState } from "react";
 // import { fetchImage } from "./utils/fetchImage";
 // import { uploadImageFromUrl, getImageFromId } from "./utils/walrus";
@@ -75,7 +76,10 @@ function App() {
             <CreateAndMint />
           )
         ) : (
-          <VerifyCertificate />
+          <>
+            <VerifyCertificate />
+            <VerifyByImage />
+          </>
         )}
       </main>
 

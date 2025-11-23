@@ -4,38 +4,36 @@
 module veriforge::certifier {
     use std::string::{String, utf8};
     use sui::event;
-    // "Self" imports the module "enclave::enclave" as just "enclave"
-    use enclave::enclave::{Self, Enclave}; 
+    // Import Table for the Registry
+    use sui::table::{Self, Table}; 
+    use enclave::enclave::{Self, Enclave};
 
-    /// Error codes
     const EInvalidSignature: u64 = 0;
+    const EImageAlreadyCertified: u64 = 1; // New error
 
-    /// The Certificate NFT proving AI provenance
+    /// Holds the mapping of Image Hash -> Certificate ID
+    public struct Registry has key {
+        id: UID,
+        images: Table<vector<u8>, ID>,
+    }
+
     public struct ImageCertificate has key, store {
         id: UID,
         name: String,
         description: String,
-        /// The Walrus Blob ID or URL
         image_url: String, 
-        /// Hash of the prompt used
         prompt_hash: vector<u8>,
-        /// Hash of the generated image
         image_hash: vector<u8>,
-        /// The model seed for reproducibility
         seed: u64,
-        /// Timestamp of generation
         timestamp_ms: u64,
     }
 
-    /// Event emitted when a new certificate is minted
     public struct CertificateMinted has copy, drop {
         id: ID,
         owner: address,
         image_url: String,
     }
 
-    /// The payload signed by the Enclave. 
-    /// Must match the Rust struct layout exactly (BCS serialization).
     public struct GenPayload has drop {
         image_hash: vector<u8>,
         prompt_hash: vector<u8>,
@@ -43,10 +41,18 @@ module veriforge::certifier {
         walrus_blob_id: String,
     }
 
-    /// Mint a verifiable certificate.
-    /// This annotation suppresses the linter warning about transferring inside the function.
+    /// Initialize the Registry (One-time setup)
+    public fun setup_registry(ctx: &mut TxContext) {
+        let registry = Registry {
+            id: object::new(ctx),
+            images: table::new(ctx),
+        };
+        transfer::share_object(registry);
+    }
+
     #[allow(lint(self_transfer))] 
     public fun mint_certificate<T>(
+        registry: &mut Registry, // <--- Add Registry Argument
         enclave: &Enclave<T>,
         image_hash: vector<u8>,
         prompt_hash: vector<u8>,
@@ -56,7 +62,10 @@ module veriforge::certifier {
         signature: vector<u8>,
         ctx: &mut TxContext
     ) {
-        // 1. Construct the payload to verify
+        // 1. Check if image is already registered
+        assert!(!table::contains(&registry.images, image_hash), EImageAlreadyCertified);
+
+        // 2. Verify Signature
         let payload = GenPayload {
             image_hash: image_hash,
             prompt_hash: prompt_hash,
@@ -64,32 +73,35 @@ module veriforge::certifier {
             walrus_blob_id: walrus_blob_id,
         };
 
-        // 2. Verify the Enclave's signature
         let is_valid = enclave::verify_signature(
             enclave,
-            0, // scope
+            0, 
             timestamp_ms,
             payload,
             &signature
         );
-
         assert!(is_valid, EInvalidSignature);
 
-        // 3. Mint and transfer the NFT
+        // 3. Mint NFT
         let id = object::new(ctx);
+        let cert_id = object::uid_to_inner(&id); // Get ID for registry
+
         let cert = ImageCertificate {
             id,
             name: utf8(b"VeriForge Certified Image"),
             description: utf8(b"This image is cryptographically verified to be AI generated."),
             image_url: walrus_blob_id,
             prompt_hash,
-            image_hash,
+            image_hash: image_hash, // Used for key
             seed,
             timestamp_ms,
         };
 
+        // 4. Register the Hash -> ID mapping
+        table::add(&mut registry.images, image_hash, cert_id);
+
         event::emit(CertificateMinted {
-            id: object::uid_to_inner(&cert.id),
+            id: cert_id,
             owner: ctx.sender(),
             image_url: cert.image_url,
         });
@@ -97,23 +109,17 @@ module veriforge::certifier {
         transfer::public_transfer(cert, ctx.sender());
     }
 
+    // ... (Keep VeriforgeApp and setup_enclave as they were) ...
     public struct VeriforgeApp has drop {}
 
     public fun setup_enclave(ctx: &mut TxContext) {
-        // 1. Create a Capability for this App
+        // ... (Existing code) ...
         let app_witness = VeriforgeApp {};
-        
-        // FIX 1: Removed extra "enclave::" prefix
         let cap = enclave::new_cap(app_witness, ctx);
-
-        // 2. Define dummy PCRs for Testnet
-        let pcr0 = vector[1, 2, 3]; 
-        // FIX 2: Added explicit type annotation ": vector<u8>"
+        let pcr0 = vector[1, 2, 3];
         let pcr1: vector<u8> = vector[];
         let pcr2: vector<u8> = vector[];
 
-        // 3. Create the Config Object (Shared Object)
-        // FIX 1: Removed extra "enclave::" prefix
         enclave::create_enclave_config(
             &cap,
             utf8(b"VeriForge Flux Enclave"),
@@ -122,8 +128,6 @@ module veriforge::certifier {
             pcr2,
             ctx
         );
-
-        // 4. Send the Admin Cap to the deployer
         transfer::public_transfer(cap, ctx.sender());
     }
 }

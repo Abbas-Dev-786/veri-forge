@@ -7,12 +7,18 @@ export const WALRUS_AGGREGATOR_URL =
   "https://aggregator.walrus-testnet.walrus.space";
 
 export const PACKAGE_ID =
-  "0x5208edc6f787e767f2cbd2e7f7bc74f3a6588c104326a08365a1b69b4a75ee07";
+  "0xb7014ae2a76026972bc508486e30a8b9baee43e85f13aa03a137e64dbafc885a";
 
 export const ENCLAVE_PACKAGE_ID =
-  "0x5208edc6f787e767f2cbd2e7f7bc74f3a6588c104326a08365a1b69b4a75ee07";
+  "0xb7014ae2a76026972bc508486e30a8b9baee43e85f13aa03a137e64dbafc885a";
 
 export const ENCLAVE_OBJECT_ID =
-  "0xdf0fc30493b4b8100162fccae889343d5c7a74990c693bf24dd6a2f115d82ea3";
+  "0x8f15486e5f40460f817e43828913374295b61cc8e50cb4f76853399726c20789";
 
 export const ENCLAVE_URL = "http://localhost:3000/process_data";
+
+export const REGISTRY_ID =
+  "0x74fd8ec45006325f37ff7a30b363d8fa4ba1b4c8e2d85a5256e3d34462295306";
+
+export const ENCLAVE_CONFIG_ID =
+  "0x30e194a417ce78aef7a810a9a680bed5c93d4f7bfd8016b6420b4311afe08ca2";

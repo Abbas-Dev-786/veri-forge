@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
 import { hashFile, hashText } from "../utils/hashing";
+import { getImageFromId } from "../utils/walrus";
 
 export function VerifyCertificate() {
   const suiClient = useSuiClient();
@@ -42,10 +43,12 @@ export function VerifyCertificate() {
 
       const fields = (obj.data.content as any).fields;
 
+      const image = await getImageFromId(fields.image_url);
+
       setNftData({
         id: obj.data.objectId,
         owner: (obj.data.owner as any)?.AddressOwner || "Shared",
-        imageUrl: fields.image_url,
+        imageUrl: image,
         imageHash: fields.image_hash, // vector<u8> → number[]
         promptHash: fields.prompt_hash, // vector<u8> → number[]
         seed: fields.seed,
