@@ -3,7 +3,9 @@
 
 use anyhow::Result;
 use axum::{routing::get, routing::post, Router};
-use fastcrypto::{ed25519::Ed25519KeyPair, traits::KeyPair};
+// FIX: Added 'ToFromBytes' to imports so we can use 'from_bytes'
+use fastcrypto::traits::ToFromBytes; 
+use fastcrypto::ed25519::Ed25519KeyPair;
 use nautilus_server::app::process_data;
 use nautilus_server::common::{get_attestation, health_check};
 use nautilus_server::AppState;
@@ -13,32 +15,31 @@ use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let eph_kp = Ed25519KeyPair::generate(&mut rand::thread_rng());
+    // FIXED SEED: Uses a constant seed so the Public Key never changes.
+    // This prevents invalid signature errors when restarting the server.
+    let seed = [0u8; 32]; 
+    let eph_kp = Ed25519KeyPair::from_bytes(&seed).unwrap();
 
-    // This API_KEY value can be stored with secret-manager. To do that, follow the prompt `sh configure_enclave.sh`
-    // Answer `y` to `Do you want to use a secret?` and finish. Otherwise, uncomment this code to use a hardcoded value.
+    // API Key Setup
     #[cfg(not(feature = "seal-example"))]
     let api_key = "045a27812dbe456392913223221306".to_string();
     // let api_key = std::env::var("API_KEY").expect("API_KEY must be set");
 
-    // NOTE: if built with `seal-example` flag the `process_data` does not use this api_key from AppState, instead
-    // it uses SEAL_API_KEY initialized with two phase bootstrap. Modify this as needed for your application.
     #[cfg(feature = "seal-example")]
     let api_key = String::new();
 
     let state = Arc::new(AppState { eph_kp, api_key });
 
-    // Spawn host-only init server if seal-example feature is enabled
     #[cfg(feature = "seal-example")]
     {
         nautilus_server::app::spawn_host_init_server(state.clone()).await?;
     }
 
-    // FIX: Added .allow_origin(Any) to enable CORS for the frontend
+    // CORS Setup
     let cors = CorsLayer::new()
         .allow_methods(Any)
         .allow_headers(Any)
-        .allow_origin(Any); 
+        .allow_origin(Any);
 
     let app = Router::new()
         .route("/", get(ping))
@@ -58,3 +59,6 @@ async fn main() -> Result<()> {
 async fn ping() -> &'static str {
     "Pong!"
 }
+
+
+

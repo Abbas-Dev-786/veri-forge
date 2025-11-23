@@ -13,6 +13,6 @@ export const ENCLAVE_PACKAGE_ID =
   "0x5208edc6f787e767f2cbd2e7f7bc74f3a6588c104326a08365a1b69b4a75ee07";
 
 export const ENCLAVE_OBJECT_ID =
-  "0x6919689417ece05ea2d8e85df3ae1c6f4c18dc71ff4966e6adf7293acc7eda3c";
+  "0xdf0fc30493b4b8100162fccae889343d5c7a74990c693bf24dd6a2f115d82ea3";
 
 export const ENCLAVE_URL = "http://localhost:3000/process_data";

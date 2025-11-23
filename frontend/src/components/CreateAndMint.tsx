@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
-import { fromHex } from "@mysten/sui/utils"; // Import helper for signature
+import { fromHex } from "@mysten/sui/utils";
 import { ENCLAVE_OBJECT_ID, ENCLAVE_URL, PACKAGE_ID } from "../constants";
 
 export function CreateAndMint() {
@@ -42,13 +42,11 @@ export function CreateAndMint() {
       const data = await response.json();
       console.log("Enclave Response:", data);
 
-      // --- FIX START ---
-      // Correctly extract data based on Rust structure
+      // Extract signature and the intent message (which contains the payload)
       const { signature, response: intentMessage } = data;
       const payload = intentMessage.data;
-      // --- FIX END ---
 
-      // Save image URL to display
+      // Save image URL to display in the UI
       setGeneratedImage(payload.walrus_blob_id);
 
       setStatus("minting");
@@ -56,29 +54,35 @@ export function CreateAndMint() {
       // 2. Construct Sui Transaction
       const tx = new Transaction();
 
-      // Convert standard arrays (from JSON) to Uint8Array
-      // The Rust server returns `Vec<u8>` as `[number, number, ...]`
+      // Convert raw arrays/hex to formats Sui understands
       const imageHashBytes = new Uint8Array(payload.image_hash);
       const promptHashBytes = new Uint8Array(payload.prompt_hash);
-
-      // The signature is a Hex String, so we use fromHex
       const signatureBytes = fromHex(signature);
 
-      // Call the Move contract
+      // IMPORTANT: Convert the JS string to a Move String object
+      // We use the standard library function 'utf8' to do this conversion on-chain
+      const [walrusString] = tx.moveCall({
+        target: "0x1::string::utf8",
+        arguments: [tx.pure.string(payload.walrus_blob_id)],
+      });
+
+      // 3. Call the Mint Function
       tx.moveCall({
         target: `${PACKAGE_ID}::certifier::mint_certificate`,
+        // IMPORTANT: Pass the 'VeriforgeApp' witness type so the contract verifies the correct Enclave
+        typeArguments: [`${PACKAGE_ID}::certifier::VeriforgeApp`],
         arguments: [
           tx.object(ENCLAVE_OBJECT_ID),
           tx.pure.vector("u8", Array.from(imageHashBytes)),
           tx.pure.vector("u8", Array.from(promptHashBytes)),
           tx.pure.u64(payload.seed),
-          tx.pure.string(payload.walrus_blob_id),
+          walrusString, // Pass the String object we created above
           tx.pure.u64(intentMessage.timestamp_ms),
           tx.pure.vector("u8", Array.from(signatureBytes)),
         ],
       });
 
-      // 3. Execute Transaction
+      // 4. Execute Transaction
       signAndExecute(
         {
           transaction: tx,
