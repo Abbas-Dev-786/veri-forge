@@ -1,3 +1,5 @@
 # External endpoints that the enclave is allowed to access.
 endpoints:
   - fal.run # replace with your own endpoints
+  - publisher.walrus-testnet.walrus.space
+  - aggregator.walrus-testnet.walrus.space

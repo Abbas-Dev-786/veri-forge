@@ -81,11 +81,31 @@ pub async fn process_data(
         .unwrap()
         .as_millis() as u64;
 
+    let publisher_url = "https://publisher.walrus-testnet.walrus.space/v1/blobs";
+    let walrus_res = client.put(publisher_url)
+        .body(image_bytes.clone()) // Send the bytes
+        .send().await
+        .map_err(|e| EnclaveError::GenericError(format!("Walrus upload failed: {e}")))?;
+
+    // 3. Parse Blob ID
+    let walrus_json: Value = walrus_res.json().await
+        .map_err(|e| EnclaveError::GenericError(format!("Failed to parse Walrus response: {e}")))?;
+    
+    let blob_id = walrus_json.get("newlyCreated")
+        .and_then(|n| n.get("blobObject"))
+        .and_then(|b| b.get("blobId"))
+        .and_then(|id| id.as_str())
+        .ok_or(EnclaveError::GenericError("Walrus response missing blobId".into()))?;
+
+    // 4. Construct Walrus Aggregator URL (Permanent Link)
+    let permanent_url = format!("https://aggregator.walrus-testnet.walrus.space/v1/{}", blob_id);
+    
+
     let payload = GenPayload {
         image_hash,
         prompt_hash,
         seed,
-        walrus_blob_id: image_url.to_string(), 
+        walrus_blob_id: blob_id.to_string(), 
     };
 
     Ok(Json(to_signed_response(

@@ -3,6 +3,7 @@ import { useSignAndExecuteTransaction } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { fromHex } from "@mysten/sui/utils";
 import { ENCLAVE_OBJECT_ID, ENCLAVE_URL, PACKAGE_ID } from "../constants";
+import { getImageFromId } from "../utils/walrus";
 
 export function CreateAndMint() {
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
@@ -46,8 +47,10 @@ export function CreateAndMint() {
       const { signature, response: intentMessage } = data;
       const payload = intentMessage.data;
 
+      const img = await getImageFromId(payload.walrus_blob_id);
+
       // Save image URL to display in the UI
-      setGeneratedImage(payload.walrus_blob_id);
+      setGeneratedImage(img);
 
       setStatus("minting");
 
