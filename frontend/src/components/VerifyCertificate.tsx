@@ -108,7 +108,7 @@ export function VerifyCertificate() {
     <div className="p-6 border border-gray-700 rounded-lg bg-gray-800 shadow-xl mt-8">
       <h2 className="text-2xl font-bold mb-4 text-white">Verify Certificate</h2>
 
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-col md:flex-row gap-2 mb-6">
         <input
           type="text"
           placeholder="Enter NFT Object ID (0x...)"
@@ -190,7 +190,7 @@ export function VerifyCertificate() {
                   The prompt text is hidden for privacy. Enter the prompt below
                   to verify it.
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-col md:flex-row gap-2">
                   <input
                     type="text"
                     placeholder="Enter original prompt..."

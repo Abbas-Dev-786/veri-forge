@@ -1,31 +1,13 @@
 import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
-import "./App.css";
 import { CreateAndMint } from "./components/CreateAndMint";
 import "@mysten/dapp-kit/dist/index.css";
 import { VerifyCertificate } from "./components/VerifyCertificate";
 import { useState } from "react";
 import { VerifyByImage } from "./components/VerifyByImage";
-// import { useState } from "react";
-// import { fetchImage } from "./utils/fetchImage";
-// import { uploadImageFromUrl, getImageFromId } from "./utils/walrus";
 
 function App() {
   const account = useCurrentAccount();
   const [activeTab, setActiveTab] = useState<"create" | "verify">("create");
-  // const [imageUrl, setImageUrl] = useState<string>("");
-
-  // const handleClick = async () => {
-  //   try {
-  //     // const imageUrl = await fetchImage();
-  //     // setImageUrl(imageUrl);
-
-  //     const img = await getImageFromId();
-  //     setImageUrl(img);
-  //     // uploadImageFromUrl(imageUrl);
-  //   } catch (err) {
-  //     console.error(err);
-  //   }
-  // };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center p-8">
@@ -87,14 +69,6 @@ function App() {
         Powered by Sui, Nautilus (TEEs) & Walrus
       </footer>
     </div>
-    // <div className="App">
-    //   <header className="App-header">
-    //     <button onClick={handleClick}>Fetch Image</button>
-    //     <div style={{ marginTop: "20px" }}>
-    //       {imageUrl && <img src={imageUrl} alt="Fetched" />}
-    //     </div>
-    //   </header>
-    // </div>
   );
 }
 
